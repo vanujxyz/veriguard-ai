@@ -21,25 +21,62 @@ log_input = st.text_area(
 
 if st.button("Analyze Log"):
 
-    response = requests.post(
-        f"{API_URL}/analyze_log",
-        json={"log_message": log_input}
-    )
-
-    result = response.json()
-
-    st.subheader("Analysis Result")
-
-    st.metric(
-        "Failure Probability",
-        f"{result['failure_probability']*100:.2f}%"
-    )
-
-    if result["failure_prediction"] == 1:
-        st.error("Critical Failure Detected")
+    if log_input.strip() == "":
+        st.warning("Please paste a log message.")
     else:
-        st.success("No Critical Failure")
 
+        response = requests.post(
+            f"{API_URL}/analyze_log",
+            json={"log_message": log_input}
+        )
+
+        result = response.json()
+
+        st.subheader("Analysis Result")
+
+        st.metric(
+            "Failure Probability",
+            f"{result['failure_probability']*100:.2f}%"
+        )
+
+        # Failure / No Failure
+        if result["failure_prediction"] == 1:
+            st.error("Critical Failure Detected")
+        else:
+            st.success("No Critical Failure")
+
+        # -----------------------------
+        # Cluster Classification
+        # -----------------------------
+
+        if "cluster_id" in result:
+
+            st.subheader("Failure Classification")
+
+            # Unknown pattern
+            if result["cluster_id"] == -1:
+
+                st.warning("New Failure Pattern Detected (Unknown Cluster)")
+
+                st.metric(
+                    "Cluster Confidence",
+                    f"{result['cluster_confidence']*100:.2f}%"
+                )
+
+            else:
+
+                col1, col2 = st.columns(2)
+
+                with col1:
+                    st.metric("Cluster ID", result["cluster_id"])
+
+                with col2:
+                    st.metric(
+                        "Cluster Confidence",
+                        f"{result['cluster_confidence']*100:.2f}%"
+                    )
+
+                st.info(f"Bug Type: {result['bug_type']}")
 
 # -----------------------------
 # Cluster Dashboard
@@ -54,8 +91,9 @@ cluster_df = pd.DataFrame(
     columns=["Cluster","Logs"]
 )
 
-st.bar_chart(cluster_df.set_index("Cluster"))
+cluster_df = cluster_df.sort_values("Logs", ascending=False)
 
+st.bar_chart(cluster_df.set_index("Cluster"))
 
 # -----------------------------
 # Top Bugs Panel
@@ -67,4 +105,4 @@ bugs = requests.get(f"{API_URL}/top_bugs").json()
 
 bugs_df = pd.DataFrame(bugs)
 
-st.dataframe(bugs_df)
+st.dataframe(bugs_df, use_container_width=True)

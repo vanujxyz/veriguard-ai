@@ -15,6 +15,7 @@ severity_weight = {
     "ERROR":2,
     "WARNING":1
 }
+cluster_counts = cluster_counts.drop(-1, errors="ignore")
 
 for cluster in cluster_counts.index:
 
