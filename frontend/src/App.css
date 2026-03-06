@@ -1,0 +1,41 @@
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700&display=swap');
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: #FEE3D2;
+}
+
+body {
+  font-family: 'Syne', sans-serif;
+}
+
+.feature-box {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.feature-box:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0px black !important;
+}
+
+.feature-box:active {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0px black !important;
+}
+
+.go-back-btn {
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+.go-back-btn:active {
+  transform: translate(3px, 4px);
+  box-shadow: 0px 0px 0px black !important;
+}
