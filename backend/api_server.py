@@ -22,6 +22,7 @@ app.add_middleware(
 
 # Load trained models
 # ---- anomaly model ----
+# Load trained models and vectorizers
 vectorizer = joblib.load("ml_engine/vectorizer.pkl")
 model = joblib.load("ml_engine/failure_model.pkl")
 
