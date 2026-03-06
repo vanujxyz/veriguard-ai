@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import pandas as pd
 import joblib
@@ -7,7 +8,19 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 app = FastAPI(title="VeriGuard AI API")
 
+
 # ---- Load anomaly model ----
+
+# Enable CORS for React frontend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Load trained models
 vectorizer = joblib.load("ml_engine/vectorizer.pkl")
 model = joblib.load("ml_engine/failure_model.pkl")
 
