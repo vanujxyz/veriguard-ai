@@ -21,17 +21,14 @@ app.add_middleware(
 )
 
 # Load trained models
+# ---- anomaly model ----
 vectorizer = joblib.load("ml_engine/vectorizer.pkl")
 model = joblib.load("ml_engine/failure_model.pkl")
 
-# ---- Load clustering artifacts ----
+# ---- clustering artifacts ----
 cluster_vectorizer = joblib.load("ml_engine/cluster_vectorizer.pkl")
+cluster_centroids = joblib.load("ml_engine/cluster_centroids.pkl")
 cluster_labels = json.load(open("ml_engine/cluster_labels.json"))
-
-cluster_df = pd.read_csv("dataset/clustered_logs.csv")
-
-cluster_centers = cluster_df.groupby("predicted_cluster")["log_message"].apply(list)
-
 
 class LogInput(BaseModel):
     log_message: str
@@ -40,67 +37,71 @@ class LogInput(BaseModel):
 @app.post("/analyze_log")
 def analyze_log(input_log: LogInput):
 
-    log = [input_log.log_message]
+    log_text = input_log.log_message
+
+    # remove trace noise (small improvement)
+    clean_log = log_text.split("Trace")[0]
+
+    log = [clean_log]
 
     # -------- anomaly detection --------
+
     log_vector = vectorizer.transform(log)
 
     prediction = model.predict(log_vector)[0]
     probability = model.predict_proba(log_vector)[0][1]
 
-    log_text = input_log.log_message
-
     if "[INFO]" in log_text:
         prediction = 0
 
-# severity calibration
+    # severity calibration
     if "[ASSERT_FAIL]" in log_text:
         probability = max(probability, 0.95)
 
     elif "[ERROR]" in log_text:
-        probability = min(max(probability, 0.75), 0.9)
+        probability = min(max(probability,0.75),0.9)
 
     elif "[WARNING]" in log_text:
-        probability = min(probability, 0.4)
+        probability = min(probability,0.4)
 
     elif "[INFO]" in log_text:
-        probability = min(probability, 0.2)
+        probability = min(probability,0.2)
 
     result = {
-        "log": input_log.log_message,
+        "log": log_text,
         "failure_prediction": int(prediction),
         "failure_probability": float(probability)
     }
 
-    # -------- clustering if failure --------
-    # -------- clustering if failure --------
-    if prediction == 1 or "[WARNING]" in input_log.log_message:
+    # -------- clustering --------
+
+    if prediction == 1 or "[WARNING]" in log_text:
 
         log_vec_cluster = cluster_vectorizer.transform(log)
 
         best_cluster = None
         best_score = 0
 
-        for cluster_id, logs in cluster_centers.items():
+        for cluster_id, centroid in cluster_centroids.items():
 
-            sample_vec = cluster_vectorizer.transform(logs[:20])
-            sim = cosine_similarity(log_vec_cluster, sample_vec).max()
+            sim = cosine_similarity(log_vec_cluster, centroid).max()
 
             if sim > best_score:
                 best_score = sim
                 best_cluster = cluster_id
 
-    # ---- unknown pattern detection ----
         CONFIDENCE_THRESHOLD = 0.55
 
         if best_score < CONFIDENCE_THRESHOLD:
+
             result["cluster_id"] = -1
             result["bug_type"] = "unknown pattern"
             result["cluster_confidence"] = float(best_score)
 
         else:
+
             result["cluster_id"] = int(best_cluster)
-            result["bug_type"] = cluster_labels.get(str(best_cluster), "unknown_pattern")
+            result["bug_type"] = cluster_labels.get(str(best_cluster),"unknown_pattern")
             result["cluster_confidence"] = float(best_score)
 
     return result

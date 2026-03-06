@@ -27,11 +27,11 @@ vectorizer = TfidfVectorizer(
 
 X = vectorizer.fit_transform(logs)
 
-# SAVE VECTORIZER
+# Save vectorizer
 joblib.dump(vectorizer, "ml_engine/cluster_vectorizer.pkl")
-print("Vectorizer saved to ml_engine/cluster_vectorizer.pkl")
+print("Vectorizer saved")
 
-print("Normalizing vectors...")
+# Normalize vectors
 X = normalize(X)
 
 # -----------------------------
@@ -48,9 +48,9 @@ dbscan = DBSCAN(
 
 clusters = dbscan.fit_predict(X)
 
-# SAVE DBSCAN MODEL
+# Save DBSCAN model
 joblib.dump(dbscan, "ml_engine/dbscan_model.pkl")
-print("DBSCAN model saved to ml_engine/dbscan_model.pkl")
+print("DBSCAN model saved")
 
 df["predicted_cluster"] = clusters
 
@@ -65,30 +65,10 @@ print("Unique clusters:", np.unique(clusters))
 # -----------------------------
 
 df.to_csv("dataset/clustered_logs.csv", index=False)
-print("\nClustered dataset saved to dataset/clustered_logs.csv")
+print("Clustered dataset saved")
 
 # -----------------------------
-# Print sample logs per cluster
-# -----------------------------
-
-for cluster_id in sorted(df["predicted_cluster"].unique()):
-
-    print(f"\n===== Cluster {cluster_id} =====")
-
-    sample_logs = df[df["predicted_cluster"] == cluster_id]["log_message"].head(5)
-
-    for log in sample_logs:
-        print(log)
-
-# -----------------------------
-# Cluster vs Bug Type Table
-# -----------------------------
-
-print("\nCluster vs Bug Type Table\n")
-
-print(pd.crosstab(df["predicted_cluster"], df["bug_type"]))
-# -----------------------------
-# Automatic Cluster Naming (Improved)
+# Generate cluster names
 # -----------------------------
 
 print("\nGenerating cluster names...")
@@ -109,12 +89,10 @@ for cluster_id in sorted(df["predicted_cluster"].unique()):
 
             msg = lines[1].lower()
 
-            # clean wording
-            msg = msg.replace("detected", "")
-            msg = msg.replace("error", "")
-            msg = msg.replace("warning", "")
-            msg = msg.replace("assertion failed:", "")
-            msg = msg.replace("  ", " ")
+            msg = msg.replace("detected","")
+            msg = msg.replace("error","")
+            msg = msg.replace("warning","")
+            msg = msg.replace("assertion failed:","")
 
             messages.append(msg.strip())
 
@@ -125,13 +103,29 @@ for cluster_id in sorted(df["predicted_cluster"].unique()):
 
     cluster_names[int(cluster_id)] = name
 
-print("\nCluster Names:\n")
 
-for k,v in cluster_names.items():
-    print(f"Cluster {k}: {v}")
-
-# SAVE CLUSTER LABELS
 with open("ml_engine/cluster_labels.json","w") as f:
     json.dump(cluster_names,f,indent=4)
 
-print("\nCluster labels saved to ml_engine/cluster_labels.json")
+print("Cluster labels saved")
+
+
+# -----------------------------
+# NEW: Save cluster centroids
+# -----------------------------
+
+print("Saving cluster centroids...")
+
+centroids = {}
+
+for cluster_id in np.unique(clusters):
+
+    cluster_vectors = X[clusters == cluster_id]
+
+    centroid = cluster_vectors.mean(axis=0)
+
+    centroids[int(cluster_id)] = centroid
+
+joblib.dump(centroids, "ml_engine/cluster_centroids.pkl")
+
+print("Cluster centroids saved")
